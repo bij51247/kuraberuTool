@@ -109,6 +109,7 @@ const Slider: React.FC<SliderProps> = ({ value, onChange, min = 0, max = 100, st
   );
 };
 
+
 // VideoPlayer component
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -120,10 +121,35 @@ interface VideoPlayerProps {
   defaultSrc?: string;
 }
 
+const PlayPauseOverlay: React.FC<{ isPlaying: boolean; onClick: () => void }> = ({ isPlaying, onClick }) => {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        cursor: 'pointer',
+      }}
+      onClick={onClick}
+    >
+      {isPlaying ? <PauseCircle /> : <PlayCircle />}
+    </div>
+  );
+};
+
+
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
   videoRef, src, fileName, onFileUpload, currentTime, onTimeUpdate, defaultSrc 
 }) => {
   const [duration, setDuration] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -132,15 +158,32 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const handleLoadedMetadata = () => setDuration(video.duration);
     const handleTimeUpdate = () => onTimeUpdate(video.currentTime);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
     };
   }, [videoRef, onTimeUpdate]);
+
+  const handlePlayPause = () => {
+    const video = videoRef.current;
+    if (video) {
+      if (isPlaying) {
+        video.pause();
+      } else {
+        video.play();
+      }
+    }
+  };
 
   const handleSliderChange = ([time]: number[]) => {
     if (videoRef.current) {
@@ -155,14 +198,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     marginBottom: '16px',
     display: 'flex',
     flexDirection: 'column',
-    height: '100%', // 親要素の高さいっぱいに広げる
+    height: '100%',
   };
 
   const videoWrapperStyle: React.CSSProperties = {
     width: '100%',
-    paddingTop: '56.25%', // 16:9のアスペクト比を保つ
+    paddingTop: '56.25%',
     position: 'relative',
-    backgroundColor: '#f0f0f0', // プレースホルダーの背景色
+    backgroundColor: '#f0f0f0',
     marginBottom: '8px',
   };
 
@@ -172,7 +215,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     left: 0,
     width: '100%',
     height: '100%',
-    objectFit: 'contain', // アスペクト比を保ちながらフィットさせる
+    objectFit: 'contain',
   };
 
   const fileNameStyle: React.CSSProperties = {
@@ -182,13 +225,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   return (
     <div style={videoContainerStyle}>
-      <div style={videoWrapperStyle}>
+      <div 
+        style={videoWrapperStyle} 
+        onMouseEnter={() => setShowOverlay(true)}
+        onMouseLeave={() => setShowOverlay(false)}
+      >
         <video 
           ref={videoRef} 
           src={src || defaultSrc}
           style={videoStyle}
           preload="metadata"
         />
+        {showOverlay && (
+          <PlayPauseOverlay isPlaying={isPlaying} onClick={handlePlayPause} />
+        )}
       </div>
       <Slider
         value={[currentTime]}
@@ -214,8 +264,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     </div>
   );
 };
-
-// Main VideoComparisonApp component
 const VideoComparisonApp: React.FC = () => {
   const [leftVideo, setLeftVideo] = useState<string | null>(null);
   const [rightVideo, setRightVideo] = useState<string | null>(null);
@@ -241,7 +289,7 @@ const VideoComparisonApp: React.FC = () => {
     }
   };
 
-  const handlePlayPause = () => {
+  const handlePlayPauseBoth = () => {
     const leftVideo = leftVideoRef.current;
     const rightVideo = rightVideoRef.current;
     if (leftVideo && rightVideo) {
@@ -279,7 +327,7 @@ const VideoComparisonApp: React.FC = () => {
   const flexContainerStyle: React.CSSProperties = {
     display: 'flex',
     gap: '16px',
-    height: '500px', // 固定の高さを設定
+    height: '500px',
   };
 
   const controlsContainerStyle: React.CSSProperties = {
@@ -314,9 +362,9 @@ const VideoComparisonApp: React.FC = () => {
         />
       </div>
       <div style={controlsContainerStyle}>
-        <Button onClick={handlePlayPause} disabled={!canPlay}>
+        <Button onClick={handlePlayPauseBoth} disabled={!canPlay}>
           {isPlaying ? <PauseCircle /> : <PlayCircle />}
-          {isPlaying ? '一時停止' : '再生'}
+          {isPlaying ? '両方一時停止' : '両方再生'}
         </Button>
         <Button onClick={handleReset} disabled={!canPlay}>
           <RotateCcw /> リセット
