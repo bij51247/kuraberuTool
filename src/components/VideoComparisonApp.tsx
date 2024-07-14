@@ -208,6 +208,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showOverlay, setShowOverlay] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [scale, setScale] = useState(1);
+  const [scaleIndex, setScaleIndex] = useState(0); // 0: 100%, 1: 150%, 2: 200%
+  const scaleValues = [1, 1.5, 2];
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -253,20 +255,40 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // スケールが変更されたときに位置をリセットする関数
-  const updateScaleAndPosition = (newScale: number) => {
-    setScale(newScale);
-    if (newScale === 1) {
+  const updateScaleAndPosition = (newScaleIndex: number) => {
+    const currentScale = scaleValues[scaleIndex];
+    const newScale = scaleValues[newScaleIndex];
+    
+    setScaleIndex(newScaleIndex);
+
+    if (newScaleIndex === 0) {
       setPosition({ x: 0, y: 0 });
+    } else {
+      setPosition(prev => {
+        const containerWidth = containerRef.current?.clientWidth || 0;
+        const containerHeight = containerRef.current?.clientHeight || 0;
+        const maxX = (newScale - 1) * containerWidth / 2;
+        const maxY = (newScale - 1) * containerHeight / 2;
+        
+        // 現在の位置を新しいスケールに合わせて調整
+        const adjustedX = (prev.x / currentScale) * newScale;
+        const adjustedY = (prev.y / currentScale) * newScale;
+
+        return {
+          x: Math.max(Math.min(adjustedX, maxX), -maxX),
+          y: Math.max(Math.min(adjustedY, maxY), -maxY)
+        };
+      });
     }
   };
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY * -0.01;
-    const newScale = Math.min(Math.max(1, scale + (scale >= 1 ? delta : Math.max(0, delta))), 2);
-    updateScaleAndPosition(newScale);
+    const delta = e.deltaY > 0 ? -1 : 1;
+    const newScaleIndex = Math.max(0, Math.min(scaleIndex + delta, 2));
+    updateScaleAndPosition(newScaleIndex);
   };
+
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -283,10 +305,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const touch2 = e.touches[1];
       const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
       const delta = distance - lastPosition.current.x;
-      const newScale = Math.min(Math.max(1, scale + delta * 0.01), 2);
-      updateScaleAndPosition(newScale);
+      const newScaleIndex = Math.max(0, Math.min(scaleIndex + (delta > 0 ? 1 : -1), 2));
+      updateScaleAndPosition(newScaleIndex);
       lastPosition.current = { x: distance, y: distance };
-    } else if (e.touches.length === 1 && scale > 1) {
+    } else if (e.touches.length === 1 && scaleIndex > 0) {
       const touch = e.touches[0];
       const deltaX = touch.clientX - lastPosition.current.x;
       const deltaY = touch.clientY - lastPosition.current.y;
@@ -296,14 +318,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale > 1) {
+    if (scaleIndex > 0) {
       isDragging.current = true;
       lastPosition.current = { x: e.clientX, y: e.clientY };
     }
   };
 
+
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging.current && scale > 1) {
+    if (isDragging.current && scaleIndex > 0) {
       const deltaX = e.clientX - lastPosition.current.x;
       const deltaY = e.clientY - lastPosition.current.y;
       updatePosition(deltaX, deltaY);
@@ -317,8 +340,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const updatePosition = (deltaX: number, deltaY: number) => {
     setPosition(prev => {
-      const maxX = (scale - 1) * containerRef.current!.clientWidth / 2;
-      const maxY = (scale - 1) * containerRef.current!.clientHeight / 2;
+      const scale = scaleValues[scaleIndex];
+      const containerWidth = containerRef.current?.clientWidth || 0;
+      const containerHeight = containerRef.current?.clientHeight || 0;
+      const maxX = (scale - 1) * containerWidth / 2;
+      const maxY = (scale - 1) * containerHeight / 2;
       return {
         x: Math.max(Math.min(prev.x + deltaX, maxX), -maxX),
         y: Math.max(Math.min(prev.y + deltaY, maxY), -maxY)
@@ -361,11 +387,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    width: `${100 * scale}%`,
-    height: `${100 * scale}%`,
+    width: `${100 * scaleValues[scaleIndex]}%`,
+    height: `${100 * scaleValues[scaleIndex]}%`,
     objectFit: 'contain',
     transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scaleX(${isFlipped ? -1 : 1})`,
-    transition: scale === 1 ? 'transform 0.3s ease-out' : 'none',
+    transition: 'transform 0.3s ease-out',
     willChange: 'transform',
   };
 
