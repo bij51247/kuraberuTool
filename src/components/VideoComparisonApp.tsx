@@ -153,12 +153,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const videoContainerStyle: React.CSSProperties = {
     width: '100%',
     marginBottom: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%', // 親要素の高さいっぱいに広げる
+  };
+
+  const videoWrapperStyle: React.CSSProperties = {
+    width: '100%',
+    paddingTop: '56.25%', // 16:9のアスペクト比を保つ
+    position: 'relative',
+    backgroundColor: '#f0f0f0', // プレースホルダーの背景色
+    marginBottom: '8px',
   };
 
   const videoStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
     width: '100%',
-    height: 'auto',
-    marginBottom: '8px',
+    height: '100%',
+    objectFit: 'contain', // アスペクト比を保ちながらフィットさせる
   };
 
   const fileNameStyle: React.CSSProperties = {
@@ -168,12 +182,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   return (
     <div style={videoContainerStyle}>
-      <video 
-        ref={videoRef} 
-        src={src || defaultSrc}
-        style={videoStyle}
-        preload="metadata"
-      />
+      <div style={videoWrapperStyle}>
+        <video 
+          ref={videoRef} 
+          src={src || defaultSrc}
+          style={videoStyle}
+          preload="metadata"
+        />
+      </div>
       <Slider
         value={[currentTime]}
         onChange={handleSliderChange}
@@ -263,6 +279,7 @@ const VideoComparisonApp: React.FC = () => {
   const flexContainerStyle: React.CSSProperties = {
     display: 'flex',
     gap: '16px',
+    height: '500px', // 固定の高さを設定
   };
 
   const controlsContainerStyle: React.CSSProperties = {
