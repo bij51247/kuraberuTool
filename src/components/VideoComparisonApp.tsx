@@ -3,19 +3,19 @@ import defaultVideo from '../assets/videos/default.mp4';
 
 // アイコンコンポーネント
 const Upload = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
 );
 
 const PlayCircle = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg>
 );
 
 const PauseCircle = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" x2="10" y1="15" y2="9"/><line x1="14" x2="14" y1="15" y2="9"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="10" x2="10" y1="15" y2="9" /><line x1="14" x2="14" y1="15" y2="9" /></svg>
 );
 
 const RotateCcw = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6" /><path d="M3 13a9 9 0 1 0 3-7.7L3 8" /></svg>
 );
 
 const FlipIcon = () => (
@@ -141,8 +141,8 @@ interface VideoPlayerProps {
 }
 
 
-const PlayPauseOverlay: React.FC<{ 
-  isPlaying: boolean; 
+const PlayPauseOverlay: React.FC<{
+  isPlaying: boolean;
   onPlayPause: () => void;
   onFlip: () => void;
 }> = ({ isPlaying, onPlayPause, onFlip }) => {
@@ -160,7 +160,7 @@ const PlayPauseOverlay: React.FC<{
         alignItems: 'center',
       }}
     >
-      <div 
+      <div
         onClick={onPlayPause}
         style={{
           cursor: 'pointer',
@@ -200,14 +200,19 @@ interface VideoPlayerProps {
 }
 
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
+const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoRef, src, fileName, onFileUpload, currentTime, onTimeUpdate, defaultSrc, playbackSpeed, onPlaybackSpeedChange
 }) => {
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const lastPosition = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     const video = videoRef.current;
@@ -248,6 +253,69 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.01;
+    const newScale = Math.min(Math.max(1, scale + delta), 5); // 最小1倍、最大5倍
+    setScale(newScale);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+      lastPosition.current = { x: distance, y: distance };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+      const delta = distance - lastPosition.current.x;
+      const newScale = Math.min(Math.max(1, scale + delta * 0.01), 5);
+      setScale(newScale);
+      lastPosition.current = { x: distance, y: distance };
+    } else if (e.touches.length === 1 && scale > 1) {
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - lastPosition.current.x;
+      const deltaY = touch.clientY - lastPosition.current.y;
+      setPosition(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }));
+      lastPosition.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale > 1) {
+      isDragging.current = true;
+      lastPosition.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging.current && scale > 1) {
+      const deltaX = e.clientX - lastPosition.current.x;
+      const deltaY = e.clientY - lastPosition.current.y;
+      setPosition(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }));
+      lastPosition.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  // handleMouseUp関数を修正
+  const handleMouseUp = (e: React.MouseEvent) => {
+    isDragging.current = false;
+  };
+
+
+
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
   };
@@ -274,16 +342,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     position: 'relative',
     backgroundColor: '#f0f0f0',
     marginBottom: '8px',
+    overflow: 'hidden',
   };
 
   const videoStyle: React.CSSProperties = {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
+    top: '50%',
+    left: '50%',
+    width: `${100 * scale}%`,
+    height: `${100 * scale}%`,
     objectFit: 'contain',
-    transform: isFlipped ? 'scaleX(-1)' : 'scaleX(1)',
+    transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scaleX(${isFlipped ? -1 : 1})`,
+    transition: 'transform 0.1s ease-out',
   };
 
   const fileNameStyle: React.CSSProperties = {
@@ -291,12 +361,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     marginTop: '8px',
   };
 
+  
   return (
     <div style={videoContainerStyle}>
       <div 
+        ref={containerRef}
         style={videoWrapperStyle} 
         onMouseEnter={() => setShowOverlay(true)}
-        onMouseLeave={() => setShowOverlay(false)}
+        onMouseLeave={(e) => {
+          setShowOverlay(false);
+          handleMouseUp(e);
+        }}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
       >
         <video 
           ref={videoRef} 
@@ -320,13 +401,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         step={0.1}
         disabled={!src && !defaultSrc}
       />
-      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '8px'}}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '8px' }}>
         <input
           type="file"
           ref={fileInputRef}
           accept="video/*"
           onChange={onFileUpload}
-          style={{display: 'none'}}
+          style={{ display: 'none' }}
         />
         <Button onClick={triggerFileInput} variant="outline">
           <Upload /> 動画をアップロード
@@ -471,7 +552,7 @@ const VideoComparisonApp: React.FC = () => {
             step={0.1}  // ステップを0.1に変更してより細かい調整を可能に
             disabled={!canPlay}
           />
-          <span>{playbackSpeed.toFixed(1)}x</span>  
+          <span>{playbackSpeed.toFixed(1)}x</span>
         </div>
       </div>
     </div>
