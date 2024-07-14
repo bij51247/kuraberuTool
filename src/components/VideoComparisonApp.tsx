@@ -18,6 +18,17 @@ const RotateCcw = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
 );
 
+const FlipIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4"></path>
+    <path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"></path>
+    <line x1="7" y1="9" x2="7" y2="15"></line>
+    <line x1="17" y1="9" x2="17" y2="15"></line>
+  </svg>
+);
+
+
+
 // Button component
 interface ButtonProps {
   children: React.ReactNode;
@@ -121,7 +132,12 @@ interface VideoPlayerProps {
   defaultSrc?: string;
 }
 
-const PlayPauseOverlay: React.FC<{ isPlaying: boolean; onClick: () => void }> = ({ isPlaying, onClick }) => {
+
+const PlayPauseOverlay: React.FC<{ 
+  isPlaying: boolean; 
+  onPlayPause: () => void;
+  onFlip: () => void;
+}> = ({ isPlaying, onPlayPause, onFlip }) => {
   return (
     <div
       style={{
@@ -134,15 +150,34 @@ const PlayPauseOverlay: React.FC<{ isPlaying: boolean; onClick: () => void }> = 
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        cursor: 'pointer',
       }}
-      onClick={onClick}
     >
-      {isPlaying ? <PauseCircle /> : <PlayCircle />}
+      <div 
+        onClick={onPlayPause}
+        style={{
+          cursor: 'pointer',
+          padding: '20px',
+        }}
+      >
+        {isPlaying ? <PauseCircle /> : <PlayCircle />}
+      </div>
+      <div
+        onClick={onFlip}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          cursor: 'pointer',
+          backgroundColor: 'rgba(255, 255, 255, 0.5)',
+          borderRadius: '50%',
+          padding: '5px',
+        }}
+      >
+        <FlipIcon />
+      </div>
     </div>
   );
 };
-
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
   videoRef, src, fileName, onFileUpload, currentTime, onTimeUpdate, defaultSrc 
@@ -150,6 +185,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -185,6 +221,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const handleFlip = () => {
+    setIsFlipped(!isFlipped);
+  };
+
   const handleSliderChange = ([time]: number[]) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
@@ -216,6 +256,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     width: '100%',
     height: '100%',
     objectFit: 'contain',
+    transform: isFlipped ? 'scaleX(-1)' : 'scaleX(1)',
   };
 
   const fileNameStyle: React.CSSProperties = {
@@ -237,7 +278,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           preload="metadata"
         />
         {showOverlay && (
-          <PlayPauseOverlay isPlaying={isPlaying} onClick={handlePlayPause} />
+          <PlayPauseOverlay 
+            isPlaying={isPlaying} 
+            onPlayPause={handlePlayPause}
+            onFlip={handleFlip}
+          />
         )}
       </div>
       <Slider
@@ -264,6 +309,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     </div>
   );
 };
+
+
 const VideoComparisonApp: React.FC = () => {
   const [leftVideo, setLeftVideo] = useState<string | null>(null);
   const [rightVideo, setRightVideo] = useState<string | null>(null);
