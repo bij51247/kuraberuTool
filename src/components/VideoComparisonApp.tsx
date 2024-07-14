@@ -421,7 +421,9 @@ const VideoComparisonApp: React.FC = () => {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    width: '200px', // スライダーの幅を広げる
   };
+
 
   const canPlay = (leftVideo || defaultVideo) && rightVideo;
 
@@ -464,12 +466,12 @@ const VideoComparisonApp: React.FC = () => {
           <Slider
             value={[playbackSpeed]}
             onChange={([speed]) => handlePlaybackSpeedChange(speed)}
-            min={0.25}
+            min={0.1}  // 最小速度を0.1倍に変更
             max={2}
-            step={0.25}
+            step={0.1}  // ステップを0.1に変更してより細かい調整を可能に
             disabled={!canPlay}
           />
-          <span>{playbackSpeed.toFixed(2)}x</span>
+          <span>{playbackSpeed.toFixed(1)}x</span>  
         </div>
       </div>
     </div>
