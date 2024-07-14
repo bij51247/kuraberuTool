@@ -27,6 +27,14 @@ const FlipIcon = () => (
   </svg>
 );
 
+const SpeedIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 5L5 19"></path>
+    <circle cx="6.5" cy="6.5" r="2.5"></circle>
+    <circle cx="17.5" cy="17.5" r="2.5"></circle>
+  </svg>
+);
+
 
 
 // Button component
@@ -179,8 +187,21 @@ const PlayPauseOverlay: React.FC<{
   );
 };
 
+interface VideoPlayerProps {
+  videoRef: React.RefObject<HTMLVideoElement>;
+  src: string | null;
+  fileName: string;
+  onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  currentTime: number;
+  onTimeUpdate: (time: number) => void;
+  defaultSrc?: string;
+  playbackSpeed: number;
+  onPlaybackSpeedChange: (speed: number) => void;
+}
+
+
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
-  videoRef, src, fileName, onFileUpload, currentTime, onTimeUpdate, defaultSrc 
+  videoRef, src, fileName, onFileUpload, currentTime, onTimeUpdate, defaultSrc, playbackSpeed, onPlaybackSpeedChange
 }) => {
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -209,6 +230,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('pause', handlePause);
     };
   }, [videoRef, onTimeUpdate]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, videoRef]);
 
   const handlePlayPause = () => {
     const video = videoRef.current;
@@ -321,6 +348,7 @@ const VideoComparisonApp: React.FC = () => {
   const [rightCurrentTime, setRightCurrentTime] = useState(0);
   const leftVideoRef = useRef<HTMLVideoElement>(null);
   const rightVideoRef = useRef<HTMLVideoElement>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
 
   const handleFileUpload = (side: 'left' | 'right') => (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -359,6 +387,10 @@ const VideoComparisonApp: React.FC = () => {
     setIsPlaying(false);
   };
 
+  const handlePlaybackSpeedChange = (newSpeed: number) => {
+    setPlaybackSpeed(newSpeed);
+  };
+
   const containerStyle: React.CSSProperties = {
     padding: '16px',
     maxWidth: '1024px',
@@ -380,8 +412,15 @@ const VideoComparisonApp: React.FC = () => {
   const controlsContainerStyle: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
     marginTop: '16px',
     gap: '16px',
+  };
+
+  const speedControlStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   };
 
   const canPlay = (leftVideo || defaultVideo) && rightVideo;
@@ -398,6 +437,8 @@ const VideoComparisonApp: React.FC = () => {
           currentTime={leftCurrentTime}
           onTimeUpdate={setLeftCurrentTime}
           defaultSrc={defaultVideo}
+          playbackSpeed={playbackSpeed}
+          onPlaybackSpeedChange={handlePlaybackSpeedChange}
         />
         <VideoPlayer
           videoRef={rightVideoRef}
@@ -406,6 +447,8 @@ const VideoComparisonApp: React.FC = () => {
           onFileUpload={handleFileUpload('right')}
           currentTime={rightCurrentTime}
           onTimeUpdate={setRightCurrentTime}
+          playbackSpeed={playbackSpeed}
+          onPlaybackSpeedChange={handlePlaybackSpeedChange}
         />
       </div>
       <div style={controlsContainerStyle}>
@@ -416,6 +459,18 @@ const VideoComparisonApp: React.FC = () => {
         <Button onClick={handleReset} disabled={!canPlay}>
           <RotateCcw /> リセット
         </Button>
+        <div style={speedControlStyle}>
+          <SpeedIcon />
+          <Slider
+            value={[playbackSpeed]}
+            onChange={([speed]) => handlePlaybackSpeedChange(speed)}
+            min={0.25}
+            max={2}
+            step={0.25}
+            disabled={!canPlay}
+          />
+          <span>{playbackSpeed.toFixed(2)}x</span>
+        </div>
       </div>
     </div>
   );
