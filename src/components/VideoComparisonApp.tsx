@@ -253,11 +253,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  // スケールが変更されたときに位置をリセットする関数
+  const updateScaleAndPosition = (newScale: number) => {
+    setScale(newScale);
+    if (newScale === 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY * -0.01;
-    const newScale = Math.min(Math.max(1, scale + delta), 5); // 最小1倍、最大5倍
-    setScale(newScale);
+    const newScale = Math.min(Math.max(1, scale + (scale >= 1 ? delta : Math.max(0, delta))), 2);
+    updateScaleAndPosition(newScale);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -275,17 +283,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const touch2 = e.touches[1];
       const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
       const delta = distance - lastPosition.current.x;
-      const newScale = Math.min(Math.max(1, scale + delta * 0.01), 5);
-      setScale(newScale);
+      const newScale = Math.min(Math.max(1, scale + delta * 0.01), 2);
+      updateScaleAndPosition(newScale);
       lastPosition.current = { x: distance, y: distance };
     } else if (e.touches.length === 1 && scale > 1) {
       const touch = e.touches[0];
       const deltaX = touch.clientX - lastPosition.current.x;
       const deltaY = touch.clientY - lastPosition.current.y;
-      setPosition(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY
-      }));
+      updatePosition(deltaX, deltaY);
       lastPosition.current = { x: touch.clientX, y: touch.clientY };
     }
   };
@@ -301,17 +306,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (isDragging.current && scale > 1) {
       const deltaX = e.clientX - lastPosition.current.x;
       const deltaY = e.clientY - lastPosition.current.y;
-      setPosition(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY
-      }));
+      updatePosition(deltaX, deltaY);
       lastPosition.current = { x: e.clientX, y: e.clientY };
     }
   };
 
-  // handleMouseUp関数を修正
   const handleMouseUp = (e: React.MouseEvent) => {
     isDragging.current = false;
+  };
+
+  const updatePosition = (deltaX: number, deltaY: number) => {
+    setPosition(prev => {
+      const maxX = (scale - 1) * containerRef.current!.clientWidth / 2;
+      const maxY = (scale - 1) * containerRef.current!.clientHeight / 2;
+      return {
+        x: Math.max(Math.min(prev.x + deltaX, maxX), -maxX),
+        y: Math.max(Math.min(prev.y + deltaY, maxY), -maxY)
+      };
+    });
   };
 
 
@@ -353,20 +365,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     height: `${100 * scale}%`,
     objectFit: 'contain',
     transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scaleX(${isFlipped ? -1 : 1})`,
-    transition: 'transform 0.1s ease-out',
+    transition: scale === 1 ? 'transform 0.3s ease-out' : 'none',
+    willChange: 'transform',
   };
+
 
   const fileNameStyle: React.CSSProperties = {
     fontSize: '14px',
     marginTop: '8px',
   };
 
-  
+
   return (
     <div style={videoContainerStyle}>
-      <div 
+      <div
         ref={containerRef}
-        style={videoWrapperStyle} 
+        style={videoWrapperStyle}
         onMouseEnter={() => setShowOverlay(true)}
         onMouseLeave={(e) => {
           setShowOverlay(false);
@@ -379,15 +393,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
-        <video 
-          ref={videoRef} 
+        <video
+          ref={videoRef}
           src={src || defaultSrc}
           style={videoStyle}
           preload="metadata"
         />
         {showOverlay && (
-          <PlayPauseOverlay 
-            isPlaying={isPlaying} 
+          <PlayPauseOverlay
+            isPlaying={isPlaying}
             onPlayPause={handlePlayPause}
             onFlip={handleFlip}
           />
