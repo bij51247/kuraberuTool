@@ -221,7 +221,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   defaultSrc,
   playbackSpeed,
   onPlaybackSpeedChange,
-  onDurationChange // 新しいプロップ
+  onDurationChange
 }) => {
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -234,13 +234,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const lastPosition = useRef({ x: 0, y: 0 });
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
-      onDurationChange(video.duration); // 動画の長さを親コンポーネントに通知
+      onDurationChange(video.duration);
     };
     const handleTimeUpdate = () => onTimeUpdate(video.currentTime);
     const handlePlay = () => setIsPlaying(true);
@@ -250,6 +251,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+
+    // 音声を無効にする
+    video.muted = true;
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
@@ -452,6 +456,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           src={src || defaultSrc}
           style={videoStyle}
           preload="metadata"
+          muted // video要素に直接mutedを設定
         />
         {showOverlay && (
           <PlayPauseOverlay
