@@ -221,7 +221,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   defaultSrc,
   playbackSpeed,
   onPlaybackSpeedChange,
-  onDurationChange
+  onDurationChange,
 }) => {
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -265,9 +265,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.playbackRate = playbackSpeed;
+      try {
+        videoRef.current.playbackRate = playbackSpeed;
+      } catch (error) {
+        console.warn('Failed to set playback rate:', error);
+      }
     }
   }, [playbackSpeed, videoRef]);
+
 
 
   useEffect(() => {
@@ -491,6 +496,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   );
 };
 
+const MIN_PLAYBACK_RATE = 0.0625; // ほとんどのブラウザでサポートされている最小値
+const MAX_PLAYBACK_RATE = 1;
 
 const VideoComparisonApp: React.FC = () => {
   const [leftVideo, setLeftVideo] = useState<string | null>(null);
@@ -542,7 +549,7 @@ const VideoComparisonApp: React.FC = () => {
   };
 
   const handlePlaybackSpeedChange = (newSpeed: number) => {
-    setPlaybackSpeed(newSpeed);
+    setPlaybackSpeed(Math.max(MIN_PLAYBACK_RATE, Math.min(MAX_PLAYBACK_RATE, newSpeed)));
   };
 
   const handleVideoEnded = (side: 'left' | 'right') => {
@@ -614,9 +621,13 @@ const VideoComparisonApp: React.FC = () => {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    width: '200px', // スライダーの幅を広げる
+    width: '200px',
   };
 
+  const formatSpeedLabel = (speed: number) => {
+    if (speed === 1) return '1.00x';
+    return speed.toFixed(2) + 'x';
+  };
 
   const canPlay = (leftVideo || defaultVideo) && rightVideo;
 
@@ -662,12 +673,12 @@ const VideoComparisonApp: React.FC = () => {
           <Slider
             value={[playbackSpeed]}
             onChange={([speed]) => handlePlaybackSpeedChange(speed)}
-            min={0.1}
-            max={2}
-            step={0.1}
+            min={MIN_PLAYBACK_RATE}
+            max={MAX_PLAYBACK_RATE}
+            step={0.0001}
             disabled={!canPlay}
           />
-          <span>{playbackSpeed.toFixed(1)}x</span>
+          <span>{playbackSpeed.toFixed(4)}x</span>
         </div>
       </div>
     </div>
