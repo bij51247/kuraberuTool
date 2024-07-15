@@ -36,6 +36,16 @@ const SpeedIcon = () => (
 );
 
 
+const LoopIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 2l4 4-4 4" />
+    <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+    <path d="M7 22l-4-4 4-4" />
+    <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+  </svg>
+);
+
+
 
 // Button component
 interface ButtonProps {
@@ -197,30 +207,41 @@ interface VideoPlayerProps {
   defaultSrc?: string;
   playbackSpeed: number;
   onPlaybackSpeedChange: (speed: number) => void;
+  onDurationChange: (duration: number) => void; // 新しいプロップ
 }
 
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
-  videoRef, src, fileName, onFileUpload, currentTime, onTimeUpdate, defaultSrc, playbackSpeed, onPlaybackSpeedChange
+  videoRef,
+  src,
+  fileName,
+  onFileUpload,
+  currentTime,
+  onTimeUpdate,
+  defaultSrc,
+  playbackSpeed,
+  onPlaybackSpeedChange,
+  onDurationChange // 新しいプロップ
 }) => {
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [scaleIndex, setScaleIndex] = useState(0); // 0: 100%, 1: 150%, 2: 200%
+  const [scaleIndex, setScaleIndex] = useState(0);
   const scaleValues = [1, 1.5, 2];
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const lastPosition = useRef({ x: 0, y: 0 });
-
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleLoadedMetadata = () => setDuration(video.duration);
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+      onDurationChange(video.duration); // 動画の長さを親コンポーネントに通知
+    };
     const handleTimeUpdate = () => onTimeUpdate(video.currentTime);
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
@@ -236,7 +257,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
     };
-  }, [videoRef, onTimeUpdate]);
+  }, [videoRef, onTimeUpdate, onDurationChange]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, videoRef]);
+
 
   useEffect(() => {
     if (videoRef.current) {
@@ -258,7 +286,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const updateScaleAndPosition = (newScaleIndex: number) => {
     const currentScale = scaleValues[scaleIndex];
     const newScale = scaleValues[newScaleIndex];
-    
+
     setScaleIndex(newScaleIndex);
 
     if (newScaleIndex === 0) {
@@ -269,7 +297,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const containerHeight = containerRef.current?.clientHeight || 0;
         const maxX = (newScale - 1) * containerWidth / 2;
         const maxY = (newScale - 1) * containerHeight / 2;
-        
+
         // 現在の位置を新しいスケールに合わせて調整
         const adjustedX = (prev.x / currentScale) * newScale;
         const adjustedY = (prev.y / currentScale) * newScale;
@@ -465,8 +493,13 @@ const VideoComparisonApp: React.FC = () => {
   const [leftFileName, setLeftFileName] = useState('');
   const [rightFileName, setRightFileName] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
   const [leftCurrentTime, setLeftCurrentTime] = useState(0);
   const [rightCurrentTime, setRightCurrentTime] = useState(0);
+  const [leftDuration, setLeftDuration] = useState(0);
+  const [rightDuration, setRightDuration] = useState(0);
+  const [leftEnded, setLeftEnded] = useState(false);
+  const [rightEnded, setRightEnded] = useState(false);
   const leftVideoRef = useRef<HTMLVideoElement>(null);
   const rightVideoRef = useRef<HTMLVideoElement>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -493,24 +526,58 @@ const VideoComparisonApp: React.FC = () => {
         leftVideo.pause();
         rightVideo.pause();
       } else {
-        leftVideo.play();
-        rightVideo.play();
+        Promise.all([leftVideo.play(), rightVideo.play()]).catch(error => console.error("Error playing video:", error));
       }
       setIsPlaying(!isPlaying);
     }
   };
 
-  const handleReset = () => {
-    if (leftVideoRef.current) leftVideoRef.current.currentTime = 0;
-    if (rightVideoRef.current) rightVideoRef.current.currentTime = 0;
-    setLeftCurrentTime(0);
-    setRightCurrentTime(0);
-    setIsPlaying(false);
+  const handleLoopToggle = () => {
+    setIsLooping(!isLooping);
   };
 
   const handlePlaybackSpeedChange = (newSpeed: number) => {
     setPlaybackSpeed(newSpeed);
   };
+
+  const handleVideoEnded = (side: 'left' | 'right') => {
+    if (side === 'left') {
+      setLeftEnded(true);
+    } else {
+      setRightEnded(true);
+    }
+  };
+
+  useEffect(() => {
+    if (isLooping && leftEnded && rightEnded) {
+      const leftVideo = leftVideoRef.current;
+      const rightVideo = rightVideoRef.current;
+      if (leftVideo && rightVideo) {
+        leftVideo.currentTime = 0;
+        rightVideo.currentTime = 0;
+        Promise.all([leftVideo.play(), rightVideo.play()]).catch(error => console.error("Error playing video:", error));
+        setLeftEnded(false);
+        setRightEnded(false);
+      }
+    } else if (!isLooping && (leftEnded || rightEnded)) {
+      setIsPlaying(false);
+    }
+  }, [isLooping, leftEnded, rightEnded]);
+
+  useEffect(() => {
+    const leftVideo = leftVideoRef.current;
+    const rightVideo = rightVideoRef.current;
+
+    if (leftVideo && rightVideo) {
+      leftVideo.onended = () => handleVideoEnded('left');
+      rightVideo.onended = () => handleVideoEnded('right');
+    }
+
+    return () => {
+      if (leftVideo) leftVideo.onended = null;
+      if (rightVideo) rightVideo.onended = null;
+    };
+  }, []);
 
   const containerStyle: React.CSSProperties = {
     padding: '16px',
@@ -562,6 +629,7 @@ const VideoComparisonApp: React.FC = () => {
           defaultSrc={defaultVideo}
           playbackSpeed={playbackSpeed}
           onPlaybackSpeedChange={handlePlaybackSpeedChange}
+          onDurationChange={setLeftDuration}
         />
         <VideoPlayer
           videoRef={rightVideoRef}
@@ -572,6 +640,7 @@ const VideoComparisonApp: React.FC = () => {
           onTimeUpdate={setRightCurrentTime}
           playbackSpeed={playbackSpeed}
           onPlaybackSpeedChange={handlePlaybackSpeedChange}
+          onDurationChange={setRightDuration}
         />
       </div>
       <div style={controlsContainerStyle}>
@@ -579,17 +648,18 @@ const VideoComparisonApp: React.FC = () => {
           {isPlaying ? <PauseCircle /> : <PlayCircle />}
           {isPlaying ? '両方一時停止' : '両方再生'}
         </Button>
-        <Button onClick={handleReset} disabled={!canPlay}>
-          <RotateCcw /> リセット
+        <Button onClick={handleLoopToggle} disabled={!canPlay}>
+          <LoopIcon />
+          {isLooping ? 'ループ解除' : 'ループ再生'}
         </Button>
         <div style={speedControlStyle}>
           <SpeedIcon />
           <Slider
             value={[playbackSpeed]}
             onChange={([speed]) => handlePlaybackSpeedChange(speed)}
-            min={0.1}  // 最小速度を0.1倍に変更
+            min={0.1}
             max={2}
-            step={0.1}  // ステップを0.1に変更してより細かい調整を可能に
+            step={0.1}
             disabled={!canPlay}
           />
           <span>{playbackSpeed.toFixed(1)}x</span>
@@ -600,3 +670,4 @@ const VideoComparisonApp: React.FC = () => {
 };
 
 export default VideoComparisonApp;
+
