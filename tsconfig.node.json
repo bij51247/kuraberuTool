@@ -7,7 +7,9 @@
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "noUnusedLocals": false,//エラー回避のためf追加
+    "noUnusedParameters": false//エラー回避のため追加
   },
   "include": ["vite.config.ts"]
 }

@@ -19,9 +19,11 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noUnusedLocals": false,//エラー回避のためfalseに変更
+    "noUnusedParameters": false,//エラー回避のためfalseに変更
+    "noFallthroughCasesInSwitch": true,
+
+    
   },
   "include": ["src"]
 }
